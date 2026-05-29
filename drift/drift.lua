@@ -56,7 +56,7 @@ local tracks = {
     rate     = 0.5,
     vel      = 90,
     duration = 0.05,
-    active   = true,
+    active   = false,
   },
   {
     name     = "kit 6",
@@ -66,7 +66,7 @@ local tracks = {
     rate     = 0.5,
     vel      = 90,
     duration = 0.05,
-    active   = true,
+    active   = false,
   },
   {
     name     = "kit 7",
@@ -76,57 +76,57 @@ local tracks = {
     rate     = 0.5,
     vel      = 90,
     duration = 0.05,
-    active   = true,
+    active   = false,
   },
   {
     name     = "kit 8",
-    mode     = "trigger",
-    channel  = 1,
-    notes    = { 66 },
-    rate     = 0.5,
-    vel      = 90,
-    duration = 0.05,
-    active   = true,
-  },
-  {
-    name     = "kit 9",
     mode     = "trigger",
     channel  = 1,
     notes    = { 67 },
     rate     = 0.5,
     vel      = 90,
     duration = 0.05,
-    active   = true,
+    active   = false,
   },
   {
-    name     = "kit 10",
+    name     = "kit 9",
     mode     = "trigger",
     channel  = 1,
     notes    = { 68 },
     rate     = 0.5,
     vel      = 90,
     duration = 0.05,
-    active   = true,
+    active   = false,
   },
   {
-    name     = "kit 11",
+    name     = "kit 10",
     mode     = "trigger",
     channel  = 1,
     notes    = { 69 },
     rate     = 0.5,
     vel      = 90,
     duration = 0.05,
-    active   = true,
+    active   = false,
   },
   {
-    name     = "kit 12",
+    name     = "kit 11",
     mode     = "trigger",
     channel  = 1,
     notes    = { 70 },
     rate     = 0.5,
     vel      = 90,
     duration = 0.05,
-    active   = true,
+    active   = false,
+  },
+  {
+    name     = "kit 12",
+    mode     = "trigger",
+    channel  = 1,
+    notes    = { 71 },
+    rate     = 0.5,
+    vel      = 90,
+    duration = 0.05,
+    active   = false,
   },
   {
     name     = "synth A",
@@ -136,7 +136,7 @@ local tracks = {
     rate     = 1.5,
     vel      = 80,
     duration = 0.3,
-    active   = true,
+    active   = false,
   },
   {
     name     = "synth B",
@@ -146,7 +146,7 @@ local tracks = {
     rate     = 3.7,
     vel      = 70,
     duration = 0.5,
-    active   = true,
+    active   = false,
   },
 }
 
@@ -213,7 +213,7 @@ local function setup_params()
   for i, t in ipairs(tracks) do
     local pfx = "t" .. i .. "_"
 
-    params:add_option(pfx .. "active", "t" .. i .. " " .. t.name .. " on", {"yes","no"}, 1)
+    params:add_option(pfx .. "active", "t" .. i .. " " .. t.name .. " on", {"yes","no"}, t.active and 1 or 2)
     params:set_action(pfx .. "active", function(v)
       tracks[i].active = (v == 1)
     end)
@@ -252,36 +252,60 @@ local function setup_params()
 end
 
 -- -------------------------------------------------------------------------
--- SCREEN
+-- SCREEN STATE
 -- -------------------------------------------------------------------------
+
+local page = 1
+local tracks_per_page = 4
 
 function redraw()
   screen.clear()
   screen.aa(0)
   screen.font_size(8)
 
+  -- header
   screen.level(15)
   screen.move(2, 8)
   screen.text("DRIFT")
   screen.move(60, 8)
   screen.text(string.format("%.0f bpm", clock.get_tempo()))
 
-  for i, t in ipairs(tracks) do
-    local y = 16 + (i * 12)
+  -- page indicator
+  local total_pages = math.ceil(#tracks / tracks_per_page)
+  screen.level(6)
+  screen.move(110, 8)
+  screen.text(page .. "/" .. total_pages)
+
+  -- track rows for current page
+  local start_i = (page - 1) * tracks_per_page + 1
+  local end_i   = math.min(start_i + tracks_per_page - 1, #tracks)
+
+  for i = start_i, end_i do
+    local t   = tracks[i]
+    local row = i - start_i + 1
+    local y   = 8 + (row * 13)
+
     screen.level(t.active and 12 or 3)
+
+    local prefix = (t.mode == "trigger") and "k" or "s"
+    local short  = string.format("%s%02d", prefix, i)
     screen.move(2, y)
-    screen.text(string.sub(t.name, 1, 7))
-    screen.move(52, y)
+    screen.text(short)
+
+    screen.move(30, y)
     screen.text(string.format("%.2f", t.rate))
-    screen.move(90, y)
-    screen.text(t.mode == "trigger" and "trig" or "synt")
-    screen.move(112, y)
-    screen.text(t.channel)
+
+    screen.move(75, y)
+    screen.text(t.active and "on" or "off")
+
+    screen.move(100, y)
+    screen.text("ch" .. t.channel)
   end
 
+  -- footer
   screen.level(4)
   screen.move(2, 62)
-  screen.text((playing and "K2:stop " or "K2:play ") .. "K3:sync")
+  -- screen.text((playing and "K2:stop " or "K2:play ") .. "K3:sync")
 
   screen.update()
 end
@@ -290,7 +314,13 @@ end
 -- ENCODERS / KEYS
 -- -------------------------------------------------------------------------
 
-function enc(n, delta) end
+function enc(n, delta)
+  if n == 2 then
+    local total_pages = math.ceil(#tracks / tracks_per_page)
+    page = math.max(1, math.min(total_pages, page + delta))
+    redraw()
+  end
+end
 
 local playing = true
 
